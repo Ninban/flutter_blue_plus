@@ -69,7 +69,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
     instance.writeDescs = [NSMutableDictionary new];
     instance.scanCounts = [NSMutableDictionary new];
     instance.logLevel = LDEBUG;
-    instance.showPowerAlert = @(YES);
+    instance.showPowerAlert = @(NO);
     instance.restoreState = @(NO);
     instance.initializedShowPowerAlert = nil;
     instance.initializedRestoreState = nil;
@@ -116,11 +116,20 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
             NSNumber *newShowPowerAlert = args[@"show_power_alert"];
             NSNumber *newRestoreState = args[@"restore_state"];
             
+            Log(LDEBUG, @"setOptions called: showPowerAlert=%@, restoreState=%@", 
+                [newShowPowerAlert boolValue] ? @"YES" : @"NO", 
+                [newRestoreState boolValue] ? @"YES" : @"NO");
+            Log(LDEBUG, @"CBCentralManager exists: %@, initialized values: showPowerAlert=%@, restoreState=%@", 
+                self.centralManager ? @"YES" : @"NO", self.initializedShowPowerAlert, self.initializedRestoreState);
+            
             // Check if options have changed from the initialized values
             BOOL showPowerAlertChanged = self.initializedShowPowerAlert != nil && 
                                        ![self.initializedShowPowerAlert isEqualToNumber:newShowPowerAlert];
             BOOL restoreStateChanged = self.initializedRestoreState != nil && 
                                      ![self.initializedRestoreState isEqualToNumber:newRestoreState];
+            
+            Log(LDEBUG, @"Options changed: showPowerAlert=%@, restoreState=%@", 
+                showPowerAlertChanged ? @"YES" : @"NO", restoreStateChanged ? @"YES" : @"NO");
             
             self.showPowerAlert = newShowPowerAlert;
             self.restoreState = newRestoreState;
@@ -1960,8 +1969,10 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
         options[CBCentralManagerOptionRestoreIdentifierKey] = @"flutterBluePlusRestoreIdentifier";
     }
 
-    Log(LDEBUG, @"showPowerAlert: %@", [self.showPowerAlert boolValue] ? @"yes" : @"no");
-    Log(LDEBUG, @"restoreState: %@", [self.restoreState boolValue] ? @"yes" : @"no");
+    Log(LDEBUG, @"CBCentralManager options: showPowerAlert=%@, restoreState=%@", 
+        [self.showPowerAlert boolValue] ? @"YES" : @"NO", 
+        [self.restoreState boolValue] ? @"YES" : @"NO");
+    Log(LDEBUG, @"Full options dictionary: %@", options);
 
     // Store the options we're using for initialization
     self.initializedShowPowerAlert = self.showPowerAlert;
