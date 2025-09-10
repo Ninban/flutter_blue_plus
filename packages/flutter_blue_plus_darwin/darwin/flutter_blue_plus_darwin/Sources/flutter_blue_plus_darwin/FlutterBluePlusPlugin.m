@@ -47,6 +47,8 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 @property(nonatomic) LogLevel logLevel;
 @property(nonatomic) NSNumber *showPowerAlert;
 @property(nonatomic) NSNumber *restoreState;
+@property(nonatomic) NSNumber *initializedShowPowerAlert;
+@property(nonatomic) NSNumber *initializedRestoreState;
 @end
 
 @implementation FlutterBluePlusPlugin
@@ -69,6 +71,8 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
     instance.logLevel = LDEBUG;
     instance.showPowerAlert = @(YES);
     instance.restoreState = @(NO);
+    instance.initializedShowPowerAlert = nil;
+    instance.initializedRestoreState = nil;
 
     [registrar addMethodCallDelegate:instance channel:methodChannel];
 }
@@ -109,8 +113,35 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
         if ([@"setOptions" isEqualToString:call.method])
         {
             NSDictionary *args = (NSDictionary*) call.arguments;
-            self.showPowerAlert = args[@"show_power_alert"];
-            self.restoreState = args[@"restore_state"];
+            NSNumber *newShowPowerAlert = args[@"show_power_alert"];
+            NSNumber *newRestoreState = args[@"restore_state"];
+            
+            // Check if options have changed from the initialized values
+            BOOL showPowerAlertChanged = self.initializedShowPowerAlert != nil && 
+                                       ![self.initializedShowPowerAlert isEqualToNumber:newShowPowerAlert];
+            BOOL restoreStateChanged = self.initializedRestoreState != nil && 
+                                     ![self.initializedRestoreState isEqualToNumber:newRestoreState];
+            
+            self.showPowerAlert = newShowPowerAlert;
+            self.restoreState = newRestoreState;
+            
+            // If central manager exists and options changed, reinitialize it
+            if (self.centralManager != nil && (showPowerAlertChanged || restoreStateChanged))
+            {
+                Log(LDEBUG, @"setOptions: Reinitializing CBCentralManager due to changed options");
+                Log(LDEBUG, @"showPowerAlert changed: %@ -> %@", self.initializedShowPowerAlert, newShowPowerAlert);
+                Log(LDEBUG, @"restoreState changed: %@ -> %@", self.initializedRestoreState, newRestoreState);
+                
+                // Only reinitialize if we're not currently scanning or connecting
+                if (self.centralManager.isScanning) {
+                    Log(LDEBUG, @"setOptions: Cannot reinitialize - currently scanning");
+                } else if ([self.currentlyConnectingPeripherals count] > 0) {
+                    Log(LDEBUG, @"setOptions: Cannot reinitialize - devices currently connecting");
+                } else {
+                    [self initializeCentralManager];
+                }
+            }
+            
             result(@YES);
             return;
         }
@@ -118,22 +149,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
         // initialize adapter
         if (self.centralManager == nil)
         {
-            Log(LDEBUG, @"initializing CBCentralManager");
-
-            NSMutableDictionary *options = [NSMutableDictionary dictionary];
-
-            if ([self.showPowerAlert boolValue]) {
-                options[CBCentralManagerOptionShowPowerAlertKey] = self.showPowerAlert;
-            }
-
-            if ([self.restoreState boolValue]) {
-                options[CBCentralManagerOptionRestoreIdentifierKey] = @"flutterBluePlusRestoreIdentifier";
-            }
-
-            Log(LDEBUG, @"showPowerAlert: %@", [self.showPowerAlert boolValue] ? @"yes" : @"no");
-            Log(LDEBUG, @"restoreState: %@", [self.restoreState boolValue] ? @"yes" : @"no");
-
-            self.centralManager = [[CBCentralManager alloc] initWithDelegate:self queue:nil options:options];
+            [self initializeCentralManager];
         }
         // initialize timer
         if (self.checkForMtuChangesTimer == nil)
@@ -1930,7 +1946,31 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 // ██    ██    ██     ██  ██       ██      
 // ██    ██    ██     ██  ██       ███████ 
 // ██    ██    ██     ██  ██            ██ 
-//  ██████     ██     ██  ███████  ███████ 
+//  ██████     ██     ██  ██  ███████  ███████ 
+
+- (void)initializeCentralManager
+{
+    Log(LDEBUG, @"initializing CBCentralManager");
+
+    NSMutableDictionary *options = [NSMutableDictionary dictionary];
+
+    if ([self.showPowerAlert boolValue]) {
+        options[CBCentralManagerOptionShowPowerAlertKey] = self.showPowerAlert;
+    }
+
+    if ([self.restoreState boolValue]) {
+        options[CBCentralManagerOptionRestoreIdentifierKey] = @"flutterBluePlusRestoreIdentifier";
+    }
+
+    Log(LDEBUG, @"showPowerAlert: %@", [self.showPowerAlert boolValue] ? @"yes" : @"no");
+    Log(LDEBUG, @"restoreState: %@", [self.restoreState boolValue] ? @"yes" : @"no");
+
+    // Store the options we're using for initialization
+    self.initializedShowPowerAlert = self.showPowerAlert;
+    self.initializedRestoreState = self.restoreState;
+
+    self.centralManager = [[CBCentralManager alloc] initWithDelegate:self queue:nil options:options];
+}
 
 - (bool)isAdapterOn
 {
