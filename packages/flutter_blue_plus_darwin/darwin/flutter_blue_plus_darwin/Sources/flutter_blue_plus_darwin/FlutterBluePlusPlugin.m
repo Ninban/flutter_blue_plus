@@ -1954,9 +1954,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 
     NSMutableDictionary *options = [NSMutableDictionary dictionary];
 
-    // if ([self.showPowerAlert boolValue]) {
-        options[CBCentralManagerOptionShowPowerAlertKey] = false;
-    // }
+    options[CBCentralManagerOptionShowPowerAlertKey] = self.showPowerAlert;
 
     if ([self.restoreState boolValue]) {
         options[CBCentralManagerOptionRestoreIdentifierKey] = @"flutterBluePlusRestoreIdentifier";
