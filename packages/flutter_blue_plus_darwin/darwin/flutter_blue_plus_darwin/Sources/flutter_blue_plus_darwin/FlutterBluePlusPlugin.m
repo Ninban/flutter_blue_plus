@@ -123,7 +123,7 @@ typedef NS_ENUM(NSUInteger, LogLevel) {
 
             NSMutableDictionary *options = [NSMutableDictionary dictionary];
 
-            if ([self.showPowerAlert boolValue]) {
+            if ([self.showPowerAlert boolValue] == false) {
                 options[CBCentralManagerOptionShowPowerAlertKey] = self.showPowerAlert;
             }
 
